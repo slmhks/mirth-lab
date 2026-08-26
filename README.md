@@ -1,3 +1,6 @@
+> [!NOTE]
+> Important: This is not a development project. Instead, it is used to explain how **Mirth** is configured and the steps to have an environment up and running for this interoperability tool.
+
 # Mirth HL7 v2 and FHIR Integration Lab
 
 A production-oriented healthcare interoperability laboratory built with Mirth Connect, Docker, and PostgreSQL.
@@ -55,13 +58,13 @@ It demonstrates how I design, configure, test, troubleshoot, and document health
 
 |Channel|Source|Transformation|Destination|Protocol|Purpose|
 |-|-|-|-|-|-|
-|`CH01\\\_IN\\\_ADT\\\_MLLP`|TCP Listener `:6661`|Validate and map ADT|File Writer / source response|MLLP|Process ADT A01/A08 events|
-|`CH02\\\_IN\\\_SIU\\\_MLLP`|TCP Listener `:6662`|Filter SIU events|File Writer / source response|MLLP|Route SIU S12/S15 events|
-|`CH03\\\_OUT\\\_ORM\\\_MLLP`|File Reader|CSV to ORM^O01|SmartHL7 `:7771`|MLLP|Send radiology orders|
-|`CH04\\\_OUT\\\_ORU\\\_MLLP`|File Reader|XML to ORU^R01|SmartHL7 `:7772`|MLLP|Send results with repeating OBX segments|
-|`CH04\\\_OUT\\\_ORU\\\_MLLP\\\_RECOVERY`|File Reader|XML to ORU^R01|Test receiver `:7774`|MLLP|Test queuing, rejection, and recovery|
-|`CH\\\_TEST\\\_FAKE\\\_RIS\\\_AE`|TCP Listener `:7774`|Build controlled AE ACK|Source response / File Writer|MLLP|Simulate application rejection|
-|`CH05\\\_ORU\\\_FILE\\\_TO\\\_FHIR\\\_R4`|File Reader|ORU to FHIR transaction Bundle|HAPI FHIR R4|HTTPS|Submit FHIR resources|
+|`CH01_IN_ADT_MLLP`|TCP Listener `:6661`|Validate and map ADT|File Writer / source response|MLLP|Process ADT A01/A08 events|
+|`CH02_IN_SIU_MLLP`|TCP Listener `:6662`|Filter SIU events|File Writer / source response|MLLP|Route SIU S12/S15 events|
+|`CH03_OUT_ORM_MLLP`|File Reader|CSV to ORM^O01|SmartHL7 `:7771`|MLLP|Send radiology orders|
+|`CH04_OUT_ORU_MLLP`|File Reader|XML to ORU^R01|SmartHL7 `:7772`|MLLP|Send results with repeating OBX segments|
+|`CH04_OUT_ORU_MLLP_RECOVERY`|File Reader|XML to ORU^R01|Test receiver `:7774`|MLLP|Test queuing, rejection, and recovery|
+|`CH_TEST_FAKE_RIS_AE`|TCP Listener `:7774`|Build controlled AE ACK|Source response / File Writer|MLLP|Simulate application rejection|
+|`CH05_ORU_FILE_TO_FHIR_R4`|File Reader|ORU to FHIR transaction Bundle|HAPI FHIR R4|HTTPS|Submit FHIR resources|
 
 See [the complete interface inventory](docs/interface-inventory.md).
 
@@ -85,13 +88,13 @@ See [the complete interface inventory](docs/interface-inventory.md).
 │       └── README.md
 └── exports/
     └── channels/
-        ├── CH01\\\_IN\\\_ADT\\\_MLLP.xml
-        ├── CH02\\\_IN\\\_SIU\\\_MLLP.xml
-        ├── CH03\\\_OUT\\\_ORM\\\_MLLP.xml
-        ├── CH04\\\_OUT\\\_ORU\\\_MLLP.xml
-        ├── CH04\\\_OUT\\\_ORU\\\_MLLP\\\_RECOVERY.xml
-        ├── CH05\\\_ORU\\\_FILE\\\_TO\\\_FHIR\\\_R4.xml
-        └── CH\\\_TEST\\\_FAKE\\\_RIS\\\_AE.xml
+        ├── CH01_IN_ADT_MLLP.xml
+        ├── CH02_IN_SIU_MLLP.xml
+        ├── CH03_OUT_ORM_MLLP.xml
+        ├── CH04_OUT_ORU_MLLP.xml
+        ├── CH04_OUT_ORU_MLLP_RECOVERY.xml
+        ├── CH05_ORU_FILE_TO_FHIR_R4.xml
+        └── CH_TEST_FAKE_RIS_AE.xml
 ```
 
 ## Quick start
@@ -122,15 +125,15 @@ From PowerShell:
 Copy-Item .env.example .env
 ```
 
-Replace every `replace\\\_me` value in `.env` with a local laboratory value. Never commit the resulting `.env` file.
+Replace every `replace_me` value in `.env` with a local laboratory value. Never commit the resulting `.env` file.
 
 The template contains:
 
 ```dotenv
-MIRTH\\\_DB\\\_NAME=mirth
-MIRTH\\\_DB\\\_USER=replace\\\_me
-MIRTH\\\_DB\\\_PASSWORD=replace\\\_me
-MIRTH\\\_KEYSTORE\\\_PASSWORD=replace\\\_me
+MIRTH_DB_NAME=mirth
+MIRTH_DB_USER=replace_me
+MIRTH_DB_PASSWORD=replace_me
+MIRTH_KEYSTORE_PASSWORD=replace_me
 ```
 
 ### 3\. Validate the Compose configuration
@@ -190,7 +193,7 @@ docker compose ps
 Check PostgreSQL:
 
 ```bash
-docker exec mirth-lab-postgres pg\\\_isready -U mirth -d mirth
+docker exec mirth-lab-postgres pg_isready -U mirth -d mirth
 ```
 
 If you changed the database username or database name, update the command accordingly.
@@ -220,9 +223,9 @@ For every processed message:
 
 |Scenario|Recorded result|Result|
 |-|-|-|
-|ADT acceptance|`MSA|AA|
+|ADT acceptance|MSA|AA|
 |SIU routing|S12 and S15 reached their intended destinations|PASS|
-|CSV to ORM|Destination `SENT`; `MSA|AA|
+|CSV to ORM|Destination `SENT`; MSA|AA|
 |XML to ORU|ORU000001 produced 3 OBX; ORU000002 produced 4 OBX|PASS|
 |Receiver outage|ORU000003 changed from `QUEUED` to `SENT` after recovery|PASS|
 |Negative ACK|ORU000004 returned `AE`; destination became `ERROR`|PASS|
@@ -281,7 +284,7 @@ Detailed procedures are available in [the operations runbook](docs/operations-ru
 
 ## HL7 ORU to FHIR R4 transformation
 
-`CH05\\\_ORU\\\_FILE\\\_TO\\\_FHIR\\\_R4` reads an HL7 ORU result and builds a FHIR R4 transaction Bundle. The mapping represents the workflow using resources such as:
+`CH05_ORU_FILE_TO_FHIR_R4` reads an HL7 ORU result and builds a FHIR R4 transaction Bundle. The mapping represents the workflow using resources such as:
 
 * `Patient`
 * `Encounter`
@@ -356,13 +359,13 @@ sha256sum -c checksums/channel-exports.sha256
 Expected result:
 
 ```text
-exports/channels/CH01\\\_IN\\\_ADT\\\_MLLP.xml: OK
-exports/channels/CH02\\\_IN\\\_SIU\\\_MLLP.xml: OK
-exports/channels/CH03\\\_OUT\\\_ORM\\\_MLLP.xml: OK
-exports/channels/CH04\\\_OUT\\\_ORU\\\_MLLP.xml: OK
-exports/channels/CH04\\\_OUT\\\_ORU\\\_MLLP\\\_RECOVERY.xml: OK
-exports/channels/CH05\\\_ORU\\\_FILE\\\_TO\\\_FHIR\\\_R4.xml: OK
-exports/channels/CH\\\_TEST\\\_FAKE\\\_RIS\\\_AE.xml: OK
+exports/channels/CH01_IN_ADT_MLLP.xml: OK
+exports/channels/CH02_IN_SIU_MLLP.xml: OK
+exports/channels/CH03_OUT_ORM_MLLP.xml: OK
+exports/channels/CH04_OUT_ORU_MLLP.xml: OK
+exports/channels/CH04_OUT_ORU_MLLP_RECOVERY.xml: OK
+exports/channels/CH05_ORU_FILE_TO_FHIR_R4.xml: OK
+exports/channels/CH_TEST_FAKE_RIS_AE.xml: OK
 ```
 
 If any result is `FAILED`, do not assume the export is the reviewed version. Investigate the difference and regenerate the checksum only after completing a new security and configuration review.
