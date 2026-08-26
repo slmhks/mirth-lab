@@ -1,0 +1,63 @@
+name: mirth-lab
+
+services:
+  database:
+    image: postgres:17-alpine
+    container_name: mirth-lab-postgres
+    environment:
+      POSTGRES_DB: ${MIRTH_DB_NAME}
+      POSTGRES_USER: ${MIRTH_DB_USER}
+      POSTGRES_PASSWORD: ${MIRTH_DB_PASSWORD}
+    volumes:
+      - mirth_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${MIRTH_DB_USER} -d ${MIRTH_DB_NAME}
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  mirth:
+    image: nextgenhealthcare/connect:4.5.2
+    container_name: mirth-lab-server
+    environment:
+      DATABASE: postgres
+      DATABASE_URL: jdbc:postgresql://database:5432/${MIRTH_DB_NAME}
+      DATABASE_USERNAME: ${MIRTH_DB_USER}
+      DATABASE_PASSWORD: ${MIRTH_DB_PASSWORD}
+      DATABASE_MAX_CONNECTIONS: "20"
+      DATABASE_MAX_RETRY: "10"
+      DATABASE_RETRY_WAIT: "10000"
+      KEYSTORE_STOREPASS: ${MIRTH_KEYSTORE_PASSWORD}
+      KEYSTORE_KEYPASS: ${MIRTH_KEYSTORE_PASSWORD}      
+      VMOPTIONS: -Xmx1024m
+      _MP_RHINO_DISABLEJAVASCRIPT: "false"
+    ports:
+      - "8443:8443"
+      - "6661:6661"
+      - "6662:6662"
+      - "8082:8082"
+    volumes:
+      - mirth_appdata:/opt/connect/appdata
+      - ./messages:/data/messages
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:v1.31.0
+    container_name: mirth-lab-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_DISABLE_RDNS: "true"
+
+volumes:
+  mirth_postgres_data:
+  mirth_appdata:

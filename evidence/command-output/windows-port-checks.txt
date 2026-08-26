@@ -1,0 +1,15 @@
+ComputerName RemotePort TcpTestSucceeded
+------------ ---------- ----------------
+localhost          8443             True
+localhost          6661             True
+localhost          6662             True
+WARNING: TCP connect to (::1 : 7771) failed
+WARNING: TCP connect to (127.0.0.1 : 7771) failed
+localhost          7771            False
+WARNING: TCP connect to (::1 : 7772) failed
+WARNING: TCP connect to (127.0.0.1 : 7772) failed
+localhost          7772            False
+WARNING: TCP connect to (::1 : 7774) failed
+localhost          7774             True
+localhost          8025             True
+localhost          1025             True

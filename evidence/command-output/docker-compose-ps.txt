@@ -1,0 +1,4 @@
+NAME                 IMAGE                             COMMAND                  SERVICE    CREATED       STATUS                  PORTS
+mirth-lab-mailpit    axllent/mailpit:v1.31.0           "/mailpit"               mailpit    3 hours ago   Up 3 hours (healthy)    0.0.0.0:1025->1025/tcp, [::]:1025->1025/tcp, 0.0.0.0:8025->8025/tcp, [::]:8025->8025/tcp
+mirth-lab-postgres   postgres:17-alpine                "docker-entrypoint.s…"   database   3 days ago    Up 30 hours (healthy)   5432/tcp
+mirth-lab-server     nextgenhealthcare/connect:4.5.2   "/entrypoint.sh ./mc…"   mirth      3 days ago    Up 30 hours             0.0.0.0:6661-6662->6661-6662/tcp, [::]:6661-6662->6661-6662/tcp, 0.0.0.0:8082->8082/tcp, [::]:8082->8082/tcp, 0.0.0.0:8443->8443/tcp, [::]:8443->8443/tcp

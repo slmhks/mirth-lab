@@ -1,0 +1,17 @@
+# Local configuration and credentials
+.env
+credentials.txt
+credentials*.txt
+*.key
+*.pem
+
+# Database recovery artifacts
+backups/
+*.sql
+
+# Processed and raw healthcare messages
+messages/
+
+# Docker and database state
+postgres-data/
+mirth-data/
