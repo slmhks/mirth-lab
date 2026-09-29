@@ -1,0 +1,1056 @@
+<channel version="4.5.2">
+  <id>aa5bb968-b4c7-4e45-8f10-326ce265f237</id>
+  <nextMetaDataId>2</nextMetaDataId>
+  <name>CH06_SECURE_ORDER_API</name>
+  <description>OAuth-protected HTTP API for receiving radiology orders</description>
+  <revision>26</revision>
+  <sourceConnector version="4.5.2">
+    <metaDataId>0</metaDataId>
+    <name>sourceConnector</name>
+    <properties class="com.mirth.connect.connectors.http.HttpReceiverProperties" version="4.5.2">
+      <pluginProperties>
+        <com.mirth.connect.plugins.httpauth.NoneHttpAuthProperties version="4.5.2">
+  <authType>NONE</authType>
+        </com.mirth.connect.plugins.httpauth.NoneHttpAuthProperties>
+      </pluginProperties>
+      <listenerConnectorProperties version="4.5.2">
+        <host>0.0.0.0</host>
+        <port>8082</port>
+      </listenerConnectorProperties>
+      <sourceConnectorProperties version="4.5.2">
+        <responseVariable>Postprocessor</responseVariable>
+        <respondAfterProcessing>true</respondAfterProcessing>
+        <processBatch>false</processBatch>
+        <firstResponse>false</firstResponse>
+        <processingThreads>1</processingThreads>
+        <resourceIds class="linked-hash-map">
+          <entry>
+            <string>Default Resource</string>
+            <string>[Default Resource]</string>
+          </entry>
+        </resourceIds>
+        <queueBufferSize>1000</queueBufferSize>
+      </sourceConnectorProperties>
+      <xmlBody>false</xmlBody>
+      <parseMultipart>true</parseMultipart>
+      <includeMetadata>false</includeMetadata>
+      <binaryMimeTypes>application/.*(?&lt;!json|xml)$|image/.*|video/.*|audio/.*</binaryMimeTypes>
+      <binaryMimeTypesRegex>true</binaryMimeTypesRegex>
+      <responseContentType>application/json</responseContentType>
+      <responseDataTypeBinary>false</responseDataTypeBinary>
+      <responseStatusCode>${httpStatusCode}</responseStatusCode>
+      <responseHeaders class="linked-hash-map">
+        <entry>
+          <string>WWW-Authenticate</string>
+          <list>
+            <string>Bearer</string>
+          </list>
+        </entry>
+        <entry>
+          <string>Cache-Control</string>
+          <list>
+            <string>no-store</string>
+          </list>
+        </entry>
+      </responseHeaders>
+      <responseHeadersVariable></responseHeadersVariable>
+      <useResponseHeadersVariable>false</useResponseHeadersVariable>
+      <charset>UTF-8</charset>
+      <contextPath>/radiology/order</contextPath>
+      <timeout>30000</timeout>
+      <staticResources/>
+    </properties>
+    <transformer version="4.5.2">
+      <elements>
+        <com.mirth.connect.plugins.javascriptstep.JavaScriptStep version="4.5.2">
+          <name>JS_TEST_KEYCLOAK_CONNECTIVITY</name>
+          <sequenceNumber>0</sequenceNumber>
+          <enabled>true</enabled>
+          <script>var HttpClients =
+    Packages.org.apache.http.impl.client.HttpClients;
+
+var HttpGet =
+    Packages.org.apache.http.client.methods.HttpGet;
+
+var EntityUtils =
+    Packages.org.apache.http.util.EntityUtils;
+
+var jwksUrl =
+    &apos;http://mirth-lab-keycloak:8080&apos; +
+    &apos;/realms/mirth-lab/protocol/openid-connect/certs&apos;;
+
+var client = null;
+var response = null;
+
+try {
+
+    client =
+        HttpClients.createDefault();
+
+    var request =
+        new HttpGet(jwksUrl);
+
+    request.addHeader(
+        &apos;Accept&apos;,
+        &apos;application/json&apos;
+    );
+
+    response =
+        client.execute(request);
+
+    var statusCode =
+        response
+            .getStatusLine()
+            .getStatusCode();
+
+    var responseBody =
+        EntityUtils.toString(
+            response.getEntity(),
+            &apos;UTF-8&apos;
+        );
+
+    if (statusCode !== 200) {
+        throw new Error(
+            &apos;JWKS endpoint returned HTTP &apos; +
+            statusCode
+        );
+    }
+
+    var jwks =
+        JSON.parse(responseBody);
+
+    var keyCount =
+        jwks.keys != null
+            ? jwks.keys.length
+            : 0;
+
+    channelMap.put(
+        &apos;jwksReachable&apos;,
+        keyCount &gt; 0
+    );
+
+    channelMap.put(
+        &apos;jwksKeyCount&apos;,
+        keyCount
+    );
+
+    logger.info(
+        &apos;[CH06 JWT] jwksReachable=&apos; +
+        (keyCount &gt; 0) +
+        &apos;, jwksKeyCount=&apos; +
+        keyCount
+    );
+
+} finally {
+
+    if (response != null) {
+        response.close();
+    }
+
+    if (client != null) {
+        client.close();
+    }
+}</script>
+        </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
+        <com.mirth.connect.plugins.javascriptstep.JavaScriptStep version="4.5.2">
+          <name>JS_EXTRACT_BEARER_TOKEN</name>
+          <sequenceNumber>1</sequenceNumber>
+          <enabled>true</enabled>
+          <script>var authorizationValueSourceMap = sourceMap.get(&apos;headers&apos;).getHeaderList(&apos;authorization&apos;);
+var authorizationHeader = null;
+var bearerToken = null;
+
+if (authorizationValueSourceMap != null) {
+    var authorizationValues = authorizationValueSourceMap;
+
+    if (authorizationValues != null &amp;&amp;
+        !authorizationValues.isEmpty()) {
+
+        authorizationHeader =
+            String(authorizationValues.get(0));
+    }
+}
+
+if (authorizationHeader != null &amp;&amp;
+    authorizationHeader.indexOf(&apos;Bearer &apos;) === 0) {
+
+    bearerToken =
+        authorizationHeader.substring(7).trim();
+}
+
+channelMap.put(
+    &apos;authorizationHeaderPresent&apos;,
+    authorizationHeader != null
+);
+
+channelMap.put(
+    &apos;bearerTokenPresent&apos;,
+    bearerToken != null &amp;&amp;
+    bearerToken.length &gt; 0
+);
+
+var authenticationAccepted =
+    bearerToken != null &amp;&amp;
+    bearerToken.length &gt; 0;
+
+channelMap.put(
+    &apos;authenticationAccepted&apos;,
+    authenticationAccepted
+);
+
+logger.info(
+    &apos;[CH06 AUTH] authorizationHeaderPresent=&apos; +
+    (authorizationHeader != null) +
+    &apos;, bearerTokenPresent=&apos; +
+    (bearerToken != null &amp;&amp; bearerToken.length &gt; 0)
+);</script>
+        </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
+        <com.mirth.connect.plugins.javascriptstep.JavaScriptStep version="4.5.2">
+          <name>JS_INSPECT_INBOUND_JSON</name>
+          <sequenceNumber>2</sequenceNumber>
+          <enabled>true</enabled>
+          <script>logger.info(
+    &apos;[CH06] correlationId=&apos; +
+    String(msg[&apos;correlationId&apos;]) +
+    &apos;, modality=&apos; +
+    String(msg[&apos;modality&apos;]) +
+    &apos;, orderAction=&apos; +
+    String(msg[&apos;orderAction&apos;])
+);</script>
+        </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
+        <com.mirth.connect.plugins.mapper.MapperStep version="4.5.2">
+          <name>correlationId</name>
+          <sequenceNumber>3</sequenceNumber>
+          <enabled>true</enabled>
+          <variable>correlationId</variable>
+          <mapping>msg[&apos;correlationId&apos;]</mapping>
+          <defaultValue></defaultValue>
+          <replacements/>
+          <scope>CHANNEL</scope>
+        </com.mirth.connect.plugins.mapper.MapperStep>
+        <com.mirth.connect.plugins.mapper.MapperStep version="4.5.2">
+          <name>modality</name>
+          <sequenceNumber>4</sequenceNumber>
+          <enabled>true</enabled>
+          <variable>modality</variable>
+          <mapping>msg[&apos;modality&apos;]</mapping>
+          <defaultValue></defaultValue>
+          <replacements/>
+          <scope>CHANNEL</scope>
+        </com.mirth.connect.plugins.mapper.MapperStep>
+        <com.mirth.connect.plugins.mapper.MapperStep version="4.5.2">
+          <name>orderAction</name>
+          <sequenceNumber>5</sequenceNumber>
+          <enabled>true</enabled>
+          <variable>orderAction</variable>
+          <mapping>msg[&apos;orderAction&apos;]</mapping>
+          <defaultValue></defaultValue>
+          <replacements/>
+          <scope>CHANNEL</scope>
+        </com.mirth.connect.plugins.mapper.MapperStep>
+      </elements>
+      <inboundTemplate encoding="base64"></inboundTemplate>
+      <outboundTemplate encoding="base64"></outboundTemplate>
+      <inboundDataType>JSON</inboundDataType>
+      <outboundDataType>JSON</outboundDataType>
+      <inboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+        <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+          <splitType>JavaScript</splitType>
+          <batchScript></batchScript>
+        </batchProperties>
+      </inboundProperties>
+      <outboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+        <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+          <splitType>JavaScript</splitType>
+          <batchScript></batchScript>
+        </batchProperties>
+      </outboundProperties>
+    </transformer>
+    <filter version="4.5.2">
+      <elements>
+        <com.mirth.connect.plugins.javascriptrule.JavaScriptRule version="4.5.2">
+          <name>JS_REQUIRE_BEARER_HEADER</name>
+          <sequenceNumber>0</sequenceNumber>
+          <enabled>true</enabled>
+          <script>function loadKeycloakJwks() {
+
+    var HttpClients =
+        Packages.org.apache.http.impl.client.HttpClients;
+
+    var HttpGet =
+        Packages.org.apache.http.client.methods.HttpGet;
+
+    var EntityUtils =
+        Packages.org.apache.http.util.EntityUtils;
+
+    var jwksUrl =
+        &apos;http://mirth-lab-keycloak:8080&apos; +
+        &apos;/realms/mirth-lab/protocol/openid-connect/certs&apos;;
+
+    var client = null;
+    var response = null;
+
+    try {
+
+        client =
+            HttpClients.createDefault();
+
+        var request =
+            new HttpGet(jwksUrl);
+
+        request.addHeader(
+            &apos;Accept&apos;,
+            &apos;application/json&apos;
+        );
+
+        response =
+            client.execute(request);
+
+        var statusCode =
+            response
+                .getStatusLine()
+                .getStatusCode();
+
+        if (statusCode !== 200) {
+            throw new Error(
+                &apos;JWKS endpoint returned HTTP &apos; +
+                statusCode
+            );
+        }
+
+        var responseBody =
+            EntityUtils.toString(
+                response.getEntity(),
+                &apos;UTF-8&apos;
+            );
+
+        return JSON.parse(
+            String(responseBody)
+        );
+
+    } finally {
+
+        if (response != null) {
+            response.close();
+        }
+
+        if (client != null) {
+            client.close();
+        }
+    }
+}
+
+function decodeBase64UrlBytes(value) {
+
+    var normalized =
+        String(value)
+            .replace(/-/g, &apos;+&apos;)
+            .replace(/_/g, &apos;/&apos;);
+
+    while (normalized.length % 4 !== 0) {
+        normalized += &apos;=&apos;;
+    }
+
+    return Packages.java.util.Base64
+        .getDecoder()
+        .decode(normalized);
+}
+
+function decodeBase64Url(value) {
+
+    var normalized =
+        String(value)
+            .replace(/-/g, &apos;+&apos;)
+            .replace(/_/g, &apos;/&apos;);
+
+    while (normalized.length % 4 !== 0) {
+        normalized += &apos;=&apos;;
+    }
+
+    var bytes =
+        Packages.java.util.Base64
+            .getDecoder()
+            .decode(normalized);
+
+    return String(
+        new Packages.java.lang.String(
+            bytes,
+            Packages.java.nio.charset.StandardCharsets.UTF_8
+        )
+    );
+}
+
+var headers = sourceMap.get(&apos;headers&apos;);
+
+if (headers == null) {
+    channelMap.put(&apos;httpStatusCode&apos;, &apos;401&apos;);
+    channelMap.put(&apos;httpAuthResult&apos;, &apos;missing_authorization_header&apos;);
+    channelMap.put(
+	    &apos;httpResponseBody&apos;,
+	    JSON.stringify({
+	        status: &apos;rejected&apos;,
+	        reason: &apos;missing_authorization_header&apos;
+	    })
+	);
+    return false;
+}
+
+var authorizationValues =
+    headers.getHeaderList(&apos;authorization&apos;);
+
+if (authorizationValues == null ||
+    authorizationValues.isEmpty()) {
+
+    channelMap.put(&apos;httpStatusCode&apos;, &apos;401&apos;);
+    channelMap.put(&apos;httpAuthResult&apos;, &apos;missing_authorization_header&apos;);
+    channelMap.put(
+	    &apos;httpResponseBody&apos;,
+	    JSON.stringify({
+	        status: &apos;rejected&apos;,
+	        reason: &apos;missing_authorization_header&apos;
+	    })
+	);
+    return false;
+}
+
+var authorizationHeader =
+    String(authorizationValues.get(0));
+
+if (authorizationHeader.indexOf(&apos;Bearer &apos;) !== 0) {
+
+    channelMap.put(&apos;httpStatusCode&apos;, &apos;401&apos;);
+    channelMap.put(&apos;httpAuthResult&apos;, &apos;unsupported_authentication_scheme&apos;);
+    channelMap.put(
+	    &apos;httpResponseBody&apos;,
+	    JSON.stringify({
+	        status: &apos;rejected&apos;,
+	        reason: &apos;unsupported_authentication_scheme&apos;
+	    })
+	);
+
+    return false;
+}
+
+var bearerToken =
+    authorizationHeader.substring(7).trim();
+
+if (bearerToken.length === 0) {
+
+    channelMap.put(&apos;httpStatusCode&apos;, &apos;401&apos;);
+    channelMap.put(&apos;httpAuthResult&apos;, &apos;missing_bearer_token&apos;);
+    channelMap.put(
+	    &apos;httpResponseBody&apos;,
+	    JSON.stringify({
+	        status: &apos;rejected&apos;,
+	        reason: &apos;missing_bearer_token&apos;
+	    })
+	);
+
+    return false;
+}
+
+var jwtParts = bearerToken.split(&apos;.&apos;);
+
+if (jwtParts.length !== 3) {
+    channelMap.put(&apos;httpStatusCode&apos;, &apos;401&apos;);
+    channelMap.put(
+        &apos;httpAuthResult&apos;,
+        &apos;invalid_jwt_structure&apos;
+    );
+    channelMap.put(
+        &apos;httpResponseBody&apos;,
+        JSON.stringify({
+            status: &apos;rejected&apos;,
+            reason: &apos;invalid_jwt_structure&apos;
+        })
+    );
+
+    return false;
+}
+
+var jwtHeaderText;
+var jwtPayloadText;
+
+try {
+
+    jwtHeaderText =
+        decodeBase64Url(jwtParts[0]);
+
+    jwtPayloadText =
+        decodeBase64Url(jwtParts[1]);
+
+} catch (e) {
+
+    channelMap.put(&apos;httpStatusCode&apos;, &apos;401&apos;);
+    channelMap.put(
+        &apos;httpAuthResult&apos;,
+        &apos;jwt_decode_failed&apos;
+    );
+    channelMap.put(
+        &apos;httpResponseBody&apos;,
+        JSON.stringify({
+            status: &apos;rejected&apos;,
+            reason: &apos;jwt_decode_failed&apos;
+        })
+    );
+
+    return false;
+}
+
+var jwtHeader;
+var jwtClaims;
+
+try {
+
+    jwtHeader = JSON.parse(jwtHeaderText);
+    jwtClaims = JSON.parse(jwtPayloadText);
+
+} catch (e) {
+
+    channelMap.put(&apos;httpStatusCode&apos;, &apos;401&apos;);
+    channelMap.put(
+        &apos;httpAuthResult&apos;,
+        &apos;invalid_jwt_json&apos;
+    );
+    channelMap.put(
+        &apos;httpResponseBody&apos;,
+        JSON.stringify({
+            status: &apos;rejected&apos;,
+            reason: &apos;invalid_jwt_json&apos;
+        })
+    );
+
+    return false;
+}
+
+// Now we have access to the JSON object.
+
+if (String(jwtHeader.alg) !== &apos;RS256&apos;) {
+
+    channelMap.put(&apos;httpStatusCode&apos;, &apos;401&apos;);
+    channelMap.put(
+        &apos;httpAuthResult&apos;,
+        &apos;unsupported_jwt_algorithm&apos;
+    );
+    channelMap.put(
+        &apos;httpResponseBody&apos;,
+        JSON.stringify({
+            status: &apos;rejected&apos;,
+            reason: &apos;unsupported_jwt_algorithm&apos;
+        })
+    );
+
+    return false;
+}
+
+var jwks;
+
+try {
+
+    jwks =
+        loadKeycloakJwks();
+
+} catch (e) {
+
+    channelMap.put(
+        &apos;httpStatusCode&apos;,
+        &apos;503&apos;
+    );
+
+    channelMap.put(
+        &apos;httpAuthResult&apos;,
+        &apos;jwks_unavailable&apos;
+    );
+
+    channelMap.put(
+        &apos;httpResponseBody&apos;,
+        JSON.stringify({
+            status: &apos;error&apos;,
+            reason: &apos;authentication_service_unavailable&apos;
+        })
+    );
+
+    return false;
+}
+
+var signingJwk = null;
+
+if (jwks.keys != null) {
+
+    for (var i = 0; i &lt; jwks.keys.length; i++) {
+
+        var candidate =
+            jwks.keys[i];
+
+        if (
+            String(candidate.kid) ===
+                String(jwtHeader.kid) &amp;&amp;
+
+            String(candidate.kty) === &apos;RSA&apos; &amp;&amp;
+
+            String(candidate.use) === &apos;sig&apos; &amp;&amp;
+
+            String(candidate.alg) === &apos;RS256&apos;
+        ) {
+
+            signingJwk =
+                candidate;
+
+            break;
+        }
+    }
+}
+
+if (signingJwk == null) {
+
+    channelMap.put(
+        &apos;httpStatusCode&apos;,
+        &apos;401&apos;
+    );
+
+    channelMap.put(
+        &apos;httpAuthResult&apos;,
+        &apos;signing_key_not_found&apos;
+    );
+
+    channelMap.put(
+        &apos;httpResponseBody&apos;,
+        JSON.stringify({
+            status: &apos;rejected&apos;,
+            reason: &apos;signing_key_not_found&apos;
+        })
+    );
+
+    return false;
+}
+
+var modulusBytes =
+    decodeBase64UrlBytes(
+        signingJwk.n
+    );
+
+var exponentBytes =
+    decodeBase64UrlBytes(
+        signingJwk.e
+    );
+
+var modulus =
+    new java.math.BigInteger(
+        1,
+        modulusBytes
+    );
+
+var exponent =
+    new java.math.BigInteger(
+        1,
+        exponentBytes
+    );
+
+var publicKeySpec =
+    new java.security.spec.RSAPublicKeySpec(
+        modulus,
+        exponent
+    );
+
+var keyFactory =
+    java.security.KeyFactory
+        .getInstance(&apos;RSA&apos;);
+
+var publicKey =
+    keyFactory.generatePublic(
+        publicKeySpec
+    );
+
+// Construct exactly the bytes signed:
+var signingInput =
+    jwtParts[0] +
+    &apos;.&apos; +
+    jwtParts[1];
+
+var signatureBytes =
+    decodeBase64UrlBytes(
+        jwtParts[2]
+    );
+
+var verifier =
+    java.security.Signature
+        .getInstance(
+            &apos;SHA256withRSA&apos;
+        );
+
+verifier.initVerify(
+    publicKey
+);
+
+verifier.update(
+    new java.lang.String(
+        signingInput
+    ).getBytes(
+        java.nio.charset.StandardCharsets.US_ASCII
+    )
+);
+
+var signatureValid =
+    verifier.verify(
+        signatureBytes
+    );
+
+// Reject invalid signature
+
+if (!signatureValid) {
+
+    channelMap.put(
+        &apos;httpStatusCode&apos;,
+        &apos;401&apos;
+    );
+
+    channelMap.put(
+        &apos;httpAuthResult&apos;,
+        &apos;invalid_jwt_signature&apos;
+    );
+
+    channelMap.put(
+        &apos;httpResponseBody&apos;,
+        JSON.stringify({
+            status: &apos;rejected&apos;,
+            reason: &apos;invalid_jwt_signature&apos;
+        })
+    );
+
+    return false;
+}
+
+var expectedIssuer =
+    &apos;http://localhost:8080/realms/mirth-lab&apos;;
+
+if (String(jwtClaims.iss) !== expectedIssuer) {
+
+    channelMap.put(&apos;httpStatusCode&apos;, &apos;401&apos;);
+    channelMap.put(
+        &apos;httpAuthResult&apos;,
+        &apos;invalid_issuer&apos;
+    );
+    channelMap.put(
+        &apos;httpResponseBody&apos;,
+        JSON.stringify({
+            status: &apos;rejected&apos;,
+            reason: &apos;invalid_issuer&apos;
+        })
+    );
+
+    return false;
+}
+
+var nowEpochSeconds =
+    Math.floor(
+        java.lang.System.currentTimeMillis() / 1000
+    );
+
+if (jwtClaims.exp == null ||
+    Number(jwtClaims.exp) &lt;= nowEpochSeconds) {
+
+    channelMap.put(&apos;httpStatusCode&apos;, &apos;401&apos;);
+    channelMap.put(
+        &apos;httpAuthResult&apos;,
+        &apos;token_expired&apos;
+    );
+    channelMap.put(
+        &apos;httpResponseBody&apos;,
+        JSON.stringify({
+            status: &apos;rejected&apos;,
+            reason: &apos;token_expired&apos;
+        })
+    );
+
+    return false;
+}
+
+var expectedAudience =
+    &apos;mirth-radiology-api&apos;;
+
+var audienceValid = false;
+
+if (jwtClaims.aud instanceof Array) {
+
+    for (var a = 0; a &lt; jwtClaims.aud.length; a++) {
+
+        if (String(jwtClaims.aud[a]) === expectedAudience) {
+            audienceValid = true;
+            break;
+        }
+    }
+
+} else if (jwtClaims.aud != null) {
+
+    audienceValid =
+        String(jwtClaims.aud) === expectedAudience;
+}
+
+if (!audienceValid) {
+
+    channelMap.put(&apos;httpStatusCode&apos;, &apos;401&apos;);
+    channelMap.put(
+        &apos;httpAuthResult&apos;,
+        &apos;invalid_audience&apos;
+    );
+    channelMap.put(
+        &apos;httpResponseBody&apos;,
+        JSON.stringify({
+            status: &apos;rejected&apos;,
+            reason: &apos;invalid_audience&apos;
+        })
+    );
+
+    return false;
+}
+
+var expectedClient =
+    &apos;radiology-order-client&apos;;
+
+if (String(jwtClaims.azp) !== expectedClient) {
+
+    channelMap.put(&apos;httpStatusCode&apos;, &apos;401&apos;);
+    channelMap.put(
+        &apos;httpAuthResult&apos;,
+        &apos;invalid_authorized_party&apos;
+    );
+    channelMap.put(
+        &apos;httpResponseBody&apos;,
+        JSON.stringify({
+            status: &apos;rejected&apos;,
+            reason: &apos;invalid_authorized_party&apos;
+        })
+    );
+
+    return false;
+}
+
+var requiredRole =
+    &apos;radiology-order.submit&apos;;
+
+var roleValid = false;
+
+if (
+    jwtClaims.realm_access != null &amp;&amp;
+    jwtClaims.realm_access.roles != null
+) {
+
+    var roles =
+        jwtClaims.realm_access.roles;
+
+    for (var r = 0; r &lt; roles.length; r++) {
+
+        if (String(roles[r]) === requiredRole) {
+            roleValid = true;
+            break;
+        }
+    }
+}
+
+if (!roleValid) {
+
+    channelMap.put(&apos;httpStatusCode&apos;, &apos;403&apos;);
+    channelMap.put(
+        &apos;httpAuthResult&apos;,
+        &apos;missing_required_role&apos;
+    );
+    channelMap.put(
+        &apos;httpResponseBody&apos;,
+        JSON.stringify({
+            status: &apos;rejected&apos;,
+            reason: &apos;missing_required_role&apos;
+        })
+    );
+
+    return false;
+}
+
+channelMap.put(
+    &apos;httpStatusCode&apos;,
+    &apos;200&apos;
+);
+
+channelMap.put(
+    &apos;httpAuthResult&apos;,
+    &apos;authenticated_and_authorized&apos;
+);
+
+channelMap.put(
+    &apos;authenticatedClient&apos;,
+    String(jwtClaims.azp)
+);
+
+channelMap.put(
+    &apos;jwtSignatureValid&apos;,
+    true
+);
+
+channelMap.put(
+    &apos;jwtAudienceValid&apos;,
+    true
+);
+
+channelMap.put(
+    &apos;jwtRoleValid&apos;,
+    true
+);
+
+channelMap.put(
+    &apos;httpResponseBody&apos;,
+    JSON.stringify({
+        status: &apos;accepted&apos;,
+        reason: &apos;authenticated_and_authorized&apos;
+    })
+);
+
+return true;</script>
+        </com.mirth.connect.plugins.javascriptrule.JavaScriptRule>
+      </elements>
+    </filter>
+    <transportName>HTTP Listener</transportName>
+    <mode>SOURCE</mode>
+    <enabled>true</enabled>
+    <waitForPrevious>true</waitForPrevious>
+  </sourceConnector>
+  <destinationConnectors>
+    <connector version="4.5.2">
+      <metaDataId>1</metaDataId>
+      <name>Destination 1</name>
+      <properties class="com.mirth.connect.connectors.vm.VmDispatcherProperties" version="4.5.2">
+        <pluginProperties/>
+        <destinationConnectorProperties version="4.5.2">
+          <queueEnabled>false</queueEnabled>
+          <sendFirst>false</sendFirst>
+          <retryIntervalMillis>10000</retryIntervalMillis>
+          <regenerateTemplate>false</regenerateTemplate>
+          <retryCount>0</retryCount>
+          <rotate>false</rotate>
+          <includeFilterTransformer>false</includeFilterTransformer>
+          <threadCount>1</threadCount>
+          <threadAssignmentVariable></threadAssignmentVariable>
+          <validateResponse>false</validateResponse>
+          <resourceIds class="linked-hash-map">
+            <entry>
+              <string>Default Resource</string>
+              <string>[Default Resource]</string>
+            </entry>
+          </resourceIds>
+          <queueBufferSize>1000</queueBufferSize>
+          <reattachAttachments>true</reattachAttachments>
+        </destinationConnectorProperties>
+        <channelId>none</channelId>
+        <channelTemplate>${message.encodedData}</channelTemplate>
+        <mapVariables/>
+      </properties>
+      <transformer version="4.5.2">
+        <elements/>
+        <inboundDataType>JSON</inboundDataType>
+        <outboundDataType>JSON</outboundDataType>
+        <inboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+          <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+            <splitType>JavaScript</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+        </inboundProperties>
+        <outboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+          <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+            <splitType>JavaScript</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+        </outboundProperties>
+      </transformer>
+      <responseTransformer version="4.5.2">
+        <elements/>
+        <inboundDataType>JSON</inboundDataType>
+        <outboundDataType>JSON</outboundDataType>
+        <inboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+          <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+            <splitType>JavaScript</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+        </inboundProperties>
+        <outboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="4.5.2">
+          <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="4.5.2">
+            <splitType>JavaScript</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+        </outboundProperties>
+      </responseTransformer>
+      <filter version="4.5.2">
+        <elements/>
+      </filter>
+      <transportName>Channel Writer</transportName>
+      <mode>DESTINATION</mode>
+      <enabled>true</enabled>
+      <waitForPrevious>true</waitForPrevious>
+    </connector>
+  </destinationConnectors>
+  <preprocessingScript>// Modify the message variable below to pre process data
+return message;</preprocessingScript>
+  <postprocessingScript>var responseBody = channelMap.get(&apos;httpResponseBody&apos;);
+
+if (responseBody == null) {
+    responseBody = JSON.stringify({
+        status: &apos;error&apos;,
+        reason: &apos;response_not_generated&apos;
+    });
+}
+
+return ResponseFactory.getSentResponse(
+    String(responseBody)
+);</postprocessingScript>
+  <deployScript>// This script executes once when the channel is deployed
+// You only have access to the globalMap and globalChannelMap here to persist data
+return;</deployScript>
+  <undeployScript>// This script executes once when the channel is undeployed
+// You only have access to the globalMap and globalChannelMap here to persist data
+return;</undeployScript>
+  <properties version="4.5.2">
+    <clearGlobalChannelMap>true</clearGlobalChannelMap>
+    <messageStorageMode>DEVELOPMENT</messageStorageMode>
+    <encryptData>false</encryptData>
+    <encryptAttachments>false</encryptAttachments>
+    <encryptCustomMetaData>false</encryptCustomMetaData>
+    <removeContentOnCompletion>false</removeContentOnCompletion>
+    <removeOnlyFilteredOnCompletion>false</removeOnlyFilteredOnCompletion>
+    <removeAttachmentsOnCompletion>false</removeAttachmentsOnCompletion>
+    <initialState>STARTED</initialState>
+    <storeAttachments>true</storeAttachments>
+    <metaDataColumns>
+      <metaDataColumn>
+        <name>SOURCE</name>
+        <type>STRING</type>
+        <mappingName>mirth_source</mappingName>
+      </metaDataColumn>
+      <metaDataColumn>
+        <name>TYPE</name>
+        <type>STRING</type>
+        <mappingName>mirth_type</mappingName>
+      </metaDataColumn>
+    </metaDataColumns>
+    <attachmentProperties version="4.5.2">
+      <type>None</type>
+      <properties/>
+    </attachmentProperties>
+    <resourceIds class="linked-hash-map">
+      <entry>
+        <string>Default Resource</string>
+        <string>[Default Resource]</string>
+      </entry>
+    </resourceIds>
+  </properties>
+  <exportData>
+    <metadata>
+      <enabled>true</enabled>
+      <lastModified>
+        <time>1790704547574</time>
+        <timezone>America/Sao_Paulo</timezone>
+      </lastModified>
+      <pruningSettings>
+        <archiveEnabled>true</archiveEnabled>
+        <pruneErroredMessages>false</pruneErroredMessages>
+      </pruningSettings>
+      <userId>1</userId>
+    </metadata>
+  </exportData>
+</channel>

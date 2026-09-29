@@ -19,6 +19,8 @@ It demonstrates how I design, configure, test, troubleshoot, and document health
 * Transform an HL7 ORU result into a FHIR R4 transaction Bundle.
 * Apply PHI-safe logging, alerting, evidence handling, and publication practices.
 * Produce reproducible configuration exports, checksums, test records, and an operational runbook.
+* Implement an OAuth 2.0 client-credentials security flow with Keycloak for a Mirth HTTP API.
+* Validate JWT structure, RS256 signatures, issuer, expiration, audience, authorized party, and application roles.
 
 ## Skills demonstrated
 
@@ -37,6 +39,11 @@ It demonstrates how I design, configure, test, troubleshoot, and document health
 * Docker Compose and PostgreSQL administration
 * Channel export integrity verification
 * Backup preparation and operational documentation
+* OAuth 2.0 client credentials and OpenID Connect
+* JWT validation with RS256 and JWKS
+* Keycloak service accounts, audience mapping, and role-based authorization
+* Docker container-to-container service discovery
+* HTTP 401 versus 403 authentication and authorization handling
 
 ## Technologies
 
@@ -53,6 +60,9 @@ It demonstrates how I design, configure, test, troubleshoot, and document health
 |Mailpit|Local operational-alert testing|
 |HAPI FHIR test server|FHIR R4 destination used for laboratory validation|
 |SmartHL7 tools|Synthetic HL7 sending and receiving during development|
+|Keycloak 26.7.2|OAuth 2.0 / OpenID Connect identity provider|
+|JWT / JWKS / RS256|Token verification and API authorization|
+|Apache HttpClient 4.5.13|JWKS retrieval from Mirth JavaScript on Java 17|
 
 ## Implemented interfaces
 
@@ -65,6 +75,7 @@ It demonstrates how I design, configure, test, troubleshoot, and document health
 |`CH04_OUT_ORU_MLLP_RECOVERY`|File Reader|XML to ORU^R01|Test receiver `:7774`|MLLP|Test queuing, rejection, and recovery|
 |`CH_TEST_FAKE_RIS_AE`|TCP Listener `:7774`|Build controlled AE ACK|Source response / File Writer|MLLP|Simulate application rejection|
 |`CH05_ORU_FILE_TO_FHIR_R4`|File Reader|ORU to FHIR transaction Bundle|HAPI FHIR R4|HTTPS|Submit FHIR resources|
+|`CH06_SECURE_ORDER_API`|HTTP Listener `:8082`|JWT authentication and radiology-order validation|Internal routing / future MWL and FHIR destinations|HTTP/JSON|Receive OAuth-protected radiology orders|
 
 See [the complete interface inventory](docs/interface-inventory.md).
 

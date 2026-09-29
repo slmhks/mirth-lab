@@ -9,7 +9,7 @@
 |CH04\_OUT\_ORU\_MLLP\_RECOVERY|File Reader|XML to ORU^R01|Test receiver :7774|MLLP|Queue and recovery testing|
 |CH\_TEST\_FAKE\_RIS\_AE|TCP Listener :7774|Build controlled AE ACK|Source response / File Writer|MLLP|Simulate application rejection|
 |CH05\_ORU\_FILE\_TO\_FHIR\_R4|File Reader|ORU to FHIR transaction Bundle|HAPI FHIR R4|HTTPS|Submit FHIR resources|
-
+|CH06_SECURE_ORDER_API|HTTP Listener :8082|JSON radiology order + OAuth/JWT validation|Internal routing / future MWL and FHIR destinations|HTTP/JSON|Authenticate and authorize radiology-order submissions|
 
 
 ## Environment
@@ -22,3 +22,29 @@
 * HL7 version: 2.3
 * Test data: Synthetic only
 
+## CH06 security contract
+
+`CH06_SECURE_ORDER_API` accepts machine-to-machine requests using OAuth 2.0 client credentials issued by Keycloak.
+
+The channel validates:
+
+- `Authorization: Bearer` presence
+- JWT three-part structure
+- Base64URL decoding and JSON parsing
+- `alg = RS256`
+- JWKS retrieval from Keycloak
+- signing-key selection by `kid`
+- RSA signature validity
+- trusted issuer
+- token expiration
+- audience `mirth-radiology-api`
+- authorized party `radiology-order-client`
+- realm role `radiology-order.submit`
+
+Successful requests return HTTP `200`.
+
+Authentication failures return HTTP `401`.
+
+A genuine authenticated token without the required role returns HTTP `403`.
+
+The laboratory uses Docker DNS (`mirth-lab-keycloak:8080`) for Mirth-to-Keycloak communication.
